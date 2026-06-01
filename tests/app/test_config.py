@@ -41,3 +41,10 @@ def test_missing_required_field_raises(tmp_path: Path) -> None:
     cfg_path.write_text("exchange: binance\n")
     with pytest.raises(ValueError, match="risk"):
         load_config(cfg_path)
+
+
+def test_empty_yaml_raises(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("")
+    with pytest.raises(ValueError, match="missing required fields"):
+        load_config(cfg_path)

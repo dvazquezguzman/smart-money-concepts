@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,7 @@ _REQUIRED_TOP = ("data_dir", "exchange", "poll_interval_seconds", "risk", "paper
 
 
 def load_config(path: Path) -> AppConfig:
-    raw: dict[str, Any] = yaml.safe_load(Path(path).read_text())
+    raw: dict[str, Any] = yaml.safe_load(Path(path).read_text()) or {}
     missing = [k for k in _REQUIRED_TOP if k not in raw]
     if missing:
         raise ValueError(f"config missing required fields: {missing}")
