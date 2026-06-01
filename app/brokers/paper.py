@@ -5,7 +5,7 @@ from typing import Literal
 
 from sqlmodel import Session, select
 
-from app.brokers.base import Broker, BrokerFill, BrokerOrder, BrokerPosition
+from app.brokers.base import Broker, BrokerOrder, BrokerPosition
 from app.db import Fill, Order, Position
 
 

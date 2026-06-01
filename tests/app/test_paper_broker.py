@@ -88,3 +88,41 @@ async def test_short_then_cover(tmp_data_dir: Path) -> None:
     bal = await pb.get_balance_quote()
     # Sold 0.5 @ 100 = +50; bought back 0.5 @ 90 = -45; net +5
     assert bal == pytest.approx(10005.0)
+
+
+@pytest.mark.asyncio
+async def test_same_direction_add_uses_weighted_average(tmp_data_dir: Path) -> None:
+    engine = init_db(tmp_data_dir / "smc.db")
+    pb = PaperBroker(engine=engine, starting_balance_quote=10000.0,
+                     fee_rate=0.0, slippage_bps=0)
+    await pb.place_order(
+        BrokerOrder(strategy="s", symbol="BTC/USDT", side="buy", qty=0.1),
+        mark_price=100.0,
+    )
+    await pb.place_order(
+        BrokerOrder(strategy="s", symbol="BTC/USDT", side="buy", qty=0.1),
+        mark_price=200.0,
+    )
+    pos = await pb.get_position("s", "BTC/USDT")
+    assert pos.qty == pytest.approx(0.2)
+    # Weighted average: (100 * 0.1 + 200 * 0.1) / 0.2 = 150
+    assert pos.avg_price == pytest.approx(150.0)
+
+
+@pytest.mark.asyncio
+async def test_cross_zero_resets_avg_price(tmp_data_dir: Path) -> None:
+    engine = init_db(tmp_data_dir / "smc.db")
+    pb = PaperBroker(engine=engine, starting_balance_quote=10000.0,
+                     fee_rate=0.0, slippage_bps=0)
+    await pb.place_order(
+        BrokerOrder(strategy="s", symbol="BTC/USDT", side="buy", qty=0.4),
+        mark_price=100.0,
+    )
+    await pb.place_order(
+        BrokerOrder(strategy="s", symbol="BTC/USDT", side="sell", qty=0.6),
+        mark_price=120.0,
+    )
+    pos = await pb.get_position("s", "BTC/USDT")
+    # Long 0.4 reversed by sell 0.6 leaves -0.2 short, repriced at the new fill.
+    assert pos.qty == pytest.approx(-0.2)
+    assert pos.avg_price == pytest.approx(120.0)
