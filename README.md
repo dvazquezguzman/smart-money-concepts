@@ -193,6 +193,97 @@ Please feel free to contribute to the project. By creating your own indicators o
 
 Less is more – each pull request should be minimal, focusing on a single function or a small feature. Large, sweeping changes will not be merged, as they are harder to review and maintain. Keep it simple and focused!
 
+## Deployment (Dashboard)
+
+The trading dashboard requires FastAPI (backend) + Next.js (frontend) + Nginx (reverse proxy).
+
+### Prerequisites
+
+```bash
+# Install system dependencies
+apt install python3 python3-pip nodejs npm nginx certbot python3-certbot-nginx
+
+# Create system user
+useradd -m -s /bin/bash smc
+
+# Clone repo
+git clone https://github.com/your-org/smart-money-concepts /opt/smart-money-concepts
+chown -R smc:smc /opt/smart-money-concepts
+```
+
+### Backend Setup
+
+```bash
+cd /opt/smart-money-concepts
+
+# Create virtualenv and install
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e . uvicorn[standard]
+
+# Configure
+cp .env.template .env
+# Edit .env with your exchange keys and symbols
+
+# Copy systemd service
+cp deploy/smc-api.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable smc-api
+systemctl start smc-api
+```
+
+### Frontend Setup
+
+```bash
+cd /opt/smart-money-concepts/frontend
+npm ci
+npm run build
+
+cp ../deploy/smc-frontend.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable smc-frontend
+systemctl start smc-frontend
+```
+
+### Nginx Reverse Proxy
+
+```bash
+cp deploy/nginx.conf /etc/nginx/sites-available/trading
+ln -s /etc/nginx/sites-available/trading /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+
+# Optional: HTTPS with Let's Encrypt
+certbot --nginx -d trading.example.com
+```
+
+### Directory Layout
+
+```
+/opt/smart-money-concepts/
+├── smartmoneyconcepts/    # Python package
+├── frontend/              # Next.js app
+├── deploy/                # Nginx + systemd configs
+├── dashboard.db           # SQLite database (auto-created)
+└── .env                   # Environment variables
+```
+
+### Managing
+
+```bash
+# View logs
+journalctl -u smc-api -f
+journalctl -u smc-frontend -f
+
+# Restart
+systemctl restart smc-api smc-frontend
+
+# Update
+cd /opt/smart-money-concepts
+git pull
+systemctl restart smc-api
+cd frontend && npm ci && npm run build && systemctl restart smc-frontend
+```
+
 ## Disclaimer
 
 This project is for educational purposes only. Do not use this indicator as a sole decision maker for your trades. Always use proper risk management and do your own research before making any trades. The author of this project is not responsible for any losses you may incur.

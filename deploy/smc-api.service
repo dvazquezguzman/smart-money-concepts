@@ -1,0 +1,27 @@
+[Unit]
+Description=Smart Money Concepts API (FastAPI + Uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=smc
+WorkingDirectory=/opt/smart-money-concepts
+ExecStart=/usr/bin/python3 -m uvicorn smartmoneyconcepts.dashboard.main:app \
+    --host 127.0.0.1 --port 8000 \
+    --workers 2 \
+    --log-level info \
+    --loop uvloop \
+    --http httptools
+Restart=always
+RestartSec=5
+EnvironmentFile=-/opt/smart-money-concepts/.env
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/smart-money-concepts/dashboard.db
+
+[Install]
+WantedBy=multi-user.target

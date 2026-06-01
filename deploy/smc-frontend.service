@@ -1,0 +1,22 @@
+[Unit]
+Description=Smart Money Concepts Frontend (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=smc
+WorkingDirectory=/opt/smart-money-concepts/frontend
+ExecStart=/usr/bin/node /opt/smart-money-concepts/frontend/node_modules/.bin/next start --port 3000
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=-/opt/smart-money-concepts/.env
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

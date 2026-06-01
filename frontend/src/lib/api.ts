@@ -151,3 +151,85 @@ export async function runBacktest(
   }
   return res.json();
 }
+
+export async function getPaperStatus(): Promise<any> {
+  return fetchJson(`${API_BASE}/api/trading/paper/status`);
+}
+
+export async function getPaperPositions(): Promise<any[]> {
+  return fetchJson(`${API_BASE}/api/trading/paper/positions`);
+}
+
+export async function startPaper(definition: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/trading/paper/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ definition }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Start failed");
+}
+
+export async function stopPaper(): Promise<void> {
+  await fetch(`${API_BASE}/api/trading/paper/stop`, { method: "POST" });
+}
+
+export async function getLiveStatus(): Promise<any> {
+  return fetchJson(`${API_BASE}/api/trading/live/status`);
+}
+
+export async function getLivePositions(): Promise<any[]> {
+  return fetchJson(`${API_BASE}/api/trading/live/positions`);
+}
+
+export async function startLive(definition: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/trading/live/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ definition }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Start failed");
+}
+
+export async function stopLive(): Promise<void> {
+  await fetch(`${API_BASE}/api/trading/live/stop`, { method: "POST" });
+}
+
+export async function killLive(): Promise<void> {
+  await fetch(`${API_BASE}/api/trading/live/kill`, { method: "POST" });
+}
+
+export async function connectLive(): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/trading/live/connect`, { method: "POST" });
+  if (!res.ok) throw new Error("Connection failed");
+}
+
+export async function getExchangeKeyStatus(): Promise<{ configured: boolean }> {
+  return fetchJson(`${API_BASE}/api/trading/exchange/keys/status`);
+}
+
+export async function saveExchangeKeys(
+  exchangeId: string,
+  apiKey: string,
+  secret: string,
+  passphrase: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/trading/exchange/keys`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ exchange_id: exchangeId, api_key: apiKey, secret, passphrase }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Save failed");
+}
+
+export async function testExchangeConnection(
+  exchangeId: string,
+  apiKey: string,
+  secret: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/trading/exchange/test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ exchange_id: exchangeId, api_key: apiKey, secret }),
+  });
+  if (!res.ok) throw new Error("Connection test failed");
+}

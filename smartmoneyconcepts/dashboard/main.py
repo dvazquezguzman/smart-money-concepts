@@ -19,6 +19,10 @@ from .db.sqlite import (
     SQLiteTradeRepository,
 )
 from .engine.data import CCXTDataEngine
+from .engine.indicators import IndicatorService
+from .execution.exchange.ccxt_wrapper import CCXTExchange
+from .execution.live import LiveTradingEngine
+from .execution.paper import PaperTradingEngine
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -33,6 +37,9 @@ class AppState:
     trade_repo: BaseTradeRepository
     config_repo: BaseConfigRepository
     data_engine: CCXTDataEngine
+    indicator_service: IndicatorService
+    paper_engine: PaperTradingEngine
+    live_engine: LiveTradingEngine
 
 
 state = AppState()
@@ -52,6 +59,19 @@ async def lifespan(app: FastAPI):
     state.config_repo = SQLiteConfigRepository(state.db)
     state.candle_repo.create_tables()
 
+    state.indicator_service = IndicatorService(state.candle_repo)
+    state.paper_engine = PaperTradingEngine(
+        trade_repo=state.trade_repo,
+        indicator_service=state.indicator_service,
+    )
+
+    exchange_instance = CCXTExchange("binance", {})
+    state.live_engine = LiveTradingEngine(
+        exchange=exchange_instance,
+        trade_repo=state.trade_repo,
+        indicator_service=state.indicator_service,
+    )
+
     exchange_id = state.config_repo.get_config("exchange_id") or "binance"
     symbols_str = state.config_repo.get_config("symbols") or '["BTC/USDT"]'
 
@@ -63,6 +83,7 @@ async def lifespan(app: FastAPI):
         exchange_id=exchange_id,
         symbols=symbols,
         repo=state.candle_repo,
+        on_candle=state.paper_engine.on_candle,
     )
 
     await state.data_engine.start()
@@ -70,6 +91,9 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    state.paper_engine.stop()
+    await state.live_engine.stop()
+    await state.live_engine.exchange.disconnect()
     await state.data_engine.stop()
     state.db.close()
     logger.info("Dashboard stopped")
@@ -90,12 +114,14 @@ from .api.routes_candles import router as candles_router
 from .api.routes_indicators import router as indicators_router
 from .api.routes_config import router as config_router
 from .api.routes_strategies import router as strategies_router
+from .api.routes_trading import router as trading_router
 from .api.ws import router as ws_router
 
 app.include_router(candles_router)
 app.include_router(indicators_router)
 app.include_router(config_router)
 app.include_router(strategies_router)
+app.include_router(trading_router)
 app.include_router(ws_router)
 
 
