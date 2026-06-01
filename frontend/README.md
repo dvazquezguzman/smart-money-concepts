@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SMC Dashboard Frontend
 
-## Getting Started
+Next.js trading dashboard for Smart Money Concepts. Displays live candlestick charts with SMC indicators, strategy management, paper/live trading controls, and trade history.
 
-First, run the development server:
+## Pages
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/dashboard/overview` | Overview | Real-time stat cards: balances, PnL, positions, server health (10s poll) |
+| `/dashboard/charts` | Charts | Candlestick chart with FVG, OB, BOS/CHoCH, liquidity overlays |
+| `/dashboard/strategies` | Strategies | Create, edit, and backtest YAML-based trading strategies |
+| `/dashboard/paper-trading` | Paper Trading | Start/stop paper engine, view simulated positions |
+| `/dashboard/live-trading` | Live Trading | Start/stop live engine, exchange key status check, kill switch |
+| `/dashboard/history` | History | Paper/Live trade history with sortable table |
+| `/dashboard/config` | Config | Manage symbols and exchange API keys |
+
+## Tech Stack
+
+- **Next.js** (App Router, React Server Components)
+- **Tailwind CSS** (dark theme)
+- **TradingView Lightweight Charts** (candle + indicator rendering)
+- **vitest** + **@testing-library/react** (unit tests)
+
+## Development
 
 ```bash
+# Install
+npm ci
+
+# Run full stack (API + frontend)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Run frontend only (expects API on :8000)
+npm run dev:web
+
+# Test
+npx vitest run        # single run
+npx vitest            # watch mode
+
+# Lint
+npm run lint
+
+# Build
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/                    # Next.js App Router pages
+│   ├── dashboard/
+│   │   ├── overview/       Stat cards with live polling
+│   │   ├── charts/         Candlestick + indicator charts
+│   │   ├── strategies/     YAML strategy editor
+│   │   ├── paper-trading/  Paper engine controls
+│   │   ├── live-trading/   Live engine controls + key status
+│   │   ├── history/        Trade history table
+│   │   └── config/         Symbols + exchange keys
+│   ├── error.tsx           Global error boundary
+│   ├── loading.tsx         Global loading state
+│   └── not-found.tsx       404 page
+├── components/             Shared UI components
+│   └── BotStatus.tsx       Dashboard sidebar status indicator
+└── lib/
+    ├── api.ts              API client (all backend endpoints)
+    └── types.ts            TypeScript type definitions
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Dependencies
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `lightweight-charts` -- TradingView charting library
+- `@testing-library/react` + `vitest` -- Testing
+- `tailwindcss` -- Utility-first CSS

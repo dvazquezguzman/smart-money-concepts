@@ -3,31 +3,113 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Bitcoin Donate](https://badgen.net/badge/Bitcoin/Donate/F19537?icon=bitcoin)](https://blockstream.info/address/bc1petss2mlqyjsajyzhu06wzl667v0f8svc0hnpqjj2d32frtx77g4sg5s0pg)
 
-<p align="center">
-  <img src="https://github.com/joshyattridge/smart-money-concepts/blob/f0c0fc28cc290cdd9dfcc6a6ac246ed1d59061be/tests/test.gif" alt="Candle Graph Showing Indicators"/>
-</p>
+# Smart Money Concepts
 
-# Smart Money Concepts (smc)
+Python library for Smart Money Concepts (ICT) trading indicators + a real-time trading dashboard with paper and live execution engines.
 
-The Smart Money Concepts Python Indicator is a sophisticated financial tool developed for traders and investors to gain insights into market sentiment, trends, and potential reversals. This indicator is inspired by Inner Circle Trader (ICT) concepts like Order blocks, Liquidity, Fair Value Gap, Swing Highs and Lows, Break of Structure, Change of Character, and more. Please Take a look and contribute to the project.
-
-## Installation
+## Quick Start
 
 ```bash
 pip install smartmoneyconcepts
-```
 
-## Usage
-
-```python
+python
 from smartmoneyconcepts import smc
+import pandas as pd
+
+ohlc = pd.DataFrame({
+    "open": [100, 102, 104], "high": [105, 108, 107],
+    "low": [99, 101, 103], "close": [102, 107, 105],
+    "volume": [1000, 1200, 1100],
+})
+fvg = smc.fvg(ohlc)
+print(fvg)
 ```
 
-Prepare data to use with smc:
+## Dashboard
 
-smc expects properly formated ohlc DataFrame, with column names in lowercase: ["open", "high", "low", "close"] and ["volume"] for indicators that expect ohlcv input.
+The project includes a full trading dashboard with:
+
+- **Live charts** using TradingView Lightweight Charts
+- **SMC indicators** (FVG, OB, BOS/CHoCH, Liquidity) rendered on candlestick charts
+- **Strategy system** -- define entry/exit conditions in YAML
+- **Paper trading** -- simulate trades with slippage, risk limits, trailing stops
+- **Live trading** -- connect to exchanges via CCXT (Binance, Bybit, etc.)
+- **Backtesting** -- run strategies against historical data with metrics (win rate, sharpe, drawdown)
+- **WebSocket streaming** -- real-time candle updates
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                   Browser                        │
+│  Next.js (frontend/src/)                         │
+│  ├── dashboard/overview     Stats overview       │
+│  ├── dashboard/charts       Candle + indicators  │
+│  ├── dashboard/strategies   YAML strategy editor │
+│  ├── dashboard/paper-trading Paper engine UI     │
+│  ├── dashboard/live-trading Live engine UI       │
+│  ├── dashboard/history      Trade history        │
+│  └── dashboard/config       Exchange keys etc.   │
+└──────────────────┬──────────────────────────────┘
+                   │ HTTP / WebSocket
+┌──────────────────▼──────────────────────────────┐
+│               FastAPI Backend                     │
+│  smartmoneyconcepts/dashboard/                    │
+│  ├── api/               REST endpoints            │
+│  ├── engine/            Data pipeline + indicators│
+│  ├── strategy/          Parser, evaluator, backtest│
+│  ├── execution/         Paper + live engines      │
+│  ├── db/                SQLite repositories       │
+│  └── main.py            App entrypoint            │
+└─────────────────────────────────────────────────┘
+```
+
+### Development Setup
+
+```bash
+# Clone and install backend
+git clone https://github.com/your-org/smart-money-concepts
+cd smart-money-concepts
+pip install -e . uvicorn[standard]
+
+# Install frontend
+cd frontend
+npm ci
+
+# Start both (concurrent)
+npm run dev
+# API: http://localhost:8000  |  UI: http://localhost:3000
+
+# Or start separately:
+npm run dev:api   # backend only
+npm run dev:web   # frontend only
+```
+
+### Environment
+
+Copy `.env.template` to `.env` and configure:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EXCHANGE_ID` | binance | CCXT exchange id |
+| `API_KEY` | - | Exchange API key |
+| `API_SECRET` | - | Exchange API secret |
+| `SYMBOLS` | BTC/USDT | Comma-separated trading pairs |
+| `NEXT_PUBLIC_API_URL` | http://localhost:8000 | Backend URL for frontend |
+
+### Deployment
+
+See [deploy/](deploy/) for nginx + systemd configs.
+
+```bash
+cp deploy/smc-api.service /etc/systemd/system/
+cp deploy/smc-frontend.service /etc/systemd/system/
+cp deploy/nginx.conf /etc/nginx/sites-available/trading
+```
 
 ## Indicators
+
+All indicators take a DataFrame with lowercase columns: `open`, `high`, `low`, `close` (and `volume` where noted).
 
 ### Fair Value Gap (FVG)
 
@@ -35,126 +117,59 @@ smc expects properly formated ohlc DataFrame, with column names in lowercase: ["
 smc.fvg(ohlc, join_consecutive=False)
 ```
 
-A fair value gap is when the previous high is lower than the next low if the current candle is bullish.
-Or when the previous low is higher than the next high if the current candle is bearish.
+Detects when price gaps between consecutive candles. `join_consecutive=True` merges adjacent FVGs.
 
-parameters:<br>
-join_consecutive: bool - if there are multiple FVG in a row then they will be merged into one using the highest top and the lowest bottom<br>
-
-returns:<br>
-FVG = 1 if bullish fair value gap, -1 if bearish fair value gap<br>
-Top = the top of the fair value gap<br>
-Bottom = the bottom of the fair value gap<br>
-MitigatedIndex = the index of the candle that mitigated the fair value gap<br>
+Returns: `FVG` (1 bullish, -1 bearish), `Top`, `Bottom`, `MitigatedIndex`
 
 ### Swing Highs and Lows
 
 ```python
-smc.swing_highs_lows(ohlc, swing_length = 50)
+smc.swing_highs_lows(ohlc, swing_length=50)
 ```
 
-A swing high is when the current high is the highest high out of the swing_length amount of candles before and after.
-A swing low is when the current low is the lowest low out of the swing_length amount of candles before and after.
+Returns: `HighLow` (1 high, -1 low), `Level`
 
-parameters:<br>
-swing_length: int - the amount of candles to look back and forward to determine the swing high or low<br>
-
-returns:<br>
-HighLow = 1 if swing high, -1 if swing low<br>
-Level = the level of the swing high or low<br>
-
-### Break of Structure (BOS) & Change of Character (CHoCH)
+### Break of Structure / Change of Character
 
 ```python
-smc.bos_choch(ohlc, swing_highs_lows, close_break = True)
+smc.bos_choch(ohlc, swing_highs_lows, close_break=True)
 ```
 
-These are both indications of market structure changing
-
-parameters:<br>
-swing_highs_lows: DataFrame - provide the dataframe from the swing_highs_lows function<br>
-close_break: bool - if True then the break of structure will be mitigated based on the close of the candle otherwise it will be the high/low.<br>
-
-returns:<br>
-BOS = 1 if bullish break of structure, -1 if bearish break of structure<br>
-CHOCH = 1 if bullish change of character, -1 if bearish change of character<br>
-Level = the level of the break of structure or change of character<br>
-BrokenIndex = the index of the candle that broke the level<br>
+Returns: `BOS` (1 bullish, -1 bearish), `CHOCH` (1 bullish, -1 bearish), `Level`, `BrokenIndex`
 
 ### Order Blocks (OB)
 
 ```python
-smc.ob(ohlc, swing_highs_lows, close_mitigation = False)
+smc.ob(ohlc, swing_highs_lows, close_mitigation=False)
 ```
 
-This method detects order blocks when there is a high amount of market orders exist on a price range.
-
-parameters:<br>
-swing_highs_lows: DataFrame - provide the dataframe from the swing_highs_lows function<br>
-close_mitigation: bool - if True then the order block will be mitigated based on the close of the candle otherwise it will be the high/low.
-
-returns:<br>
-OB = 1 if bullish order block, -1 if bearish order block<br>
-Top = top of the order block<br>
-Bottom = bottom of the order block<br>
-OBVolume = volume + 2 last volumes amounts<br>
-Percentage = strength of order block (min(highVolume, lowVolume)/max(highVolume,lowVolume))<br>
-
+Returns: `OB` (1 bullish, -1 bearish), `Top`, `Bottom`, `OBVolume`, `Percentage`
 
 ### Liquidity
 
 ```python
-smc.liquidity(ohlc, swing_highs_lows, range_percent = 0.01)
+smc.liquidity(ohlc, swing_highs_lows, range_percent=0.01)
 ```
 
-Liquidity is when there are multiply highs within a small range of each other.
-or multiply lows within a small range of each other.
-
-parameters:<br>
-swing_highs_lows: DataFrame - provide the dataframe from the swing_highs_lows function<br>
-range_percent: float - the percentage of the range to determine liquidity<br>
-
-returns:<br>
-Liquidity = 1 if bullish liquidity, -1 if bearish liquidity<br>
-Level = the level of the liquidity<br>
-End = the index of the last liquidity level<br>
-Swept = the index of the candle that swept the liquidity<br>
+Returns: `Liquidity` (1 bullish, -1 bearish), `Level`, `End`, `Swept`
 
 ### Previous High And Low
 
 ```python
-smc.previous_high_low(ohlc, time_frame = "1D")
+smc.previous_high_low(ohlc, time_frame="1D")
 ```
 
-This method returns the previous high and low of the given time frame.
-
-parameters:<br>
-time_frame: str - the time frame to get the previous high and low 15m, 1H, 4H, 1D, 1W, 1M<br>
-
-returns:<br>
-PreviousHigh = the previous high<br>
-PreviousLow = the previous low<br>
-BrokenHigh = 1 once price has broken the previous high of the timeframe, 0 otherwise<br>
-BrokenLow = 1 once price has broken the previous low of the timeframe, 0 otherwise<br>
+Returns: `PreviousHigh`, `PreviousLow`, `BrokenHigh`, `BrokenLow`
 
 ### Sessions
 
 ```python
-smc.sessions(ohlc, session, start_time, end_time, time_zone = "UTC")
+smc.sessions(ohlc, session, start_time, end_time, time_zone="UTC")
 ```
 
-This method returns which candles are within the session specified
+Sessions: Sydney, Tokyo, London, New York, Asian kill zone, London open kill zone, New York kill zone, London close kill zone, Custom.
 
-parameters:<br>
-session: str - the session you want to check (Sydney, Tokyo, London, New York, Asian kill zone, London open kill zone, New York kill zone, london close kill zone, Custom)<br>
-start_time: str - the start time of the session in the format "HH:MM" only required for custom session.<br>
-end_time: str - the end time of the session in the format "HH:MM" only required for custom session.<br>
-time_zone: str - the time zone of the candles can be in the format "UTC+0" or "GMT+0"<br>
-
-returns:<br>
-Active = 1 if the candle is within the session, 0 if not<br>
-High = the highest point of the session<br>
-Low = the lowest point of the session<br>
+Returns: `Active` (1 if in session), `High`, `Low`
 
 ### Retracements
 
@@ -162,15 +177,67 @@ Low = the lowest point of the session<br>
 smc.retracements(ohlc, swing_highs_lows)
 ```
 
-This method returns the percentage of a retracement from the swing high or low
+Returns: `Direction`, `CurrentRetracement%`, `DeepestRetracement%`
 
-parameters:<br>
-swing_highs_lows: DataFrame - provide the dataframe from the swing_highs_lows function<br>
+## Strategy System
 
-returns:<br>
-Direction = 1 if bullish retracement, -1 if bearish retracement<br>
-CurrentRetracement% = the current retracement percentage from the swing high or low<br>
-DeepestRetracement% = the deepest retracement percentage from the swing high or low<br>
+Strategies are defined in YAML and can be paper-traded, live-traded, or backtested.
+
+```yaml
+name: ICT FVG Breaker
+timeframe: 5m
+symbol: BTC/USDT
+entry_conditions:
+  - type: fvg_mitigation
+    direction: bullish
+    lookback: 10
+  - type: session
+    direction: bullish
+    session: London
+exit_conditions:
+  - type: target
+    value: 2.0
+  - type: stop_loss
+    value: 1.0
+risk:
+  position_size_pct: 1.0
+  max_positions: 1
+```
+
+Supported condition types: `fvg_mitigation`, `ob_break`, `liquidity_sweep`, `bos`, `choch`, `session`, `trend`.
+Exit types: `target` (R-multiple), `stop_loss`, `trailing_stop`.
+
+See [docs/strategies.md](docs/strategies.md) for full documentation.
+
+## API
+
+The backend exposes REST endpoints under `/api/`:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Server health check |
+| `/api/candles/{symbol}` | GET | OHLCV candles |
+| `/api/indicators/{symbol}` | GET | Computed indicators |
+| `/api/config/symbols` | GET/POST/DELETE | Manage tracked symbols |
+| `/api/strategies` | GET/POST | List / create strategies |
+| `/api/strategies/{id}` | GET/PUT/DELETE | CRUD individual strategy |
+| `/api/strategies/backtest` | POST | Run backtest |
+| `/api/strategies/templates/` | GET | List / load templates |
+| `/api/trading/paper/*` | GET/POST | Paper engine status, start, stop, history |
+| `/api/trading/live/*` | GET/POST | Live engine status, start, stop, kill, history |
+| `/api/trading/exchange/keys` | GET/PUT | Exchange API key management |
+
+See [docs/api.md](docs/api.md) for full endpoint documentation.
+
+## Testing
+
+```bash
+# Backend (pytest)
+pytest smartmoneyconcepts/dashboard/tests/ -v
+
+# Frontend (vitest)
+cd frontend && npx vitest run
+```
 
 ## Hide Credit Message
 
@@ -178,112 +245,10 @@ DeepestRetracement% = the deepest retracement percentage from the swing high or 
 export SMC_CREDIT=0
 ```
 
-This method will hide the credit message when you first import the library.
-
 ## Contributing
 
-Please feel free to contribute to the project. By creating your own indicators or improving the existing ones. If you are struggling to find something to do then please check out the issues tab for requested changes.
-
-1. Fork it (https://github.com/joshyattridge/smartmoneyconcepts/fork).
-2. Study how it's implemented.
-3. Create your feature branch (git checkout -b my-new-feature).
-4. Commit your changes (git commit -am 'Add some feature').
-5. Push to the branch (git push origin my-new-feature).
-6. Create a new Pull Request.
-
-Less is more – each pull request should be minimal, focusing on a single function or a small feature. Large, sweeping changes will not be merged, as they are harder to review and maintain. Keep it simple and focused!
-
-## Deployment (Dashboard)
-
-The trading dashboard requires FastAPI (backend) + Next.js (frontend) + Nginx (reverse proxy).
-
-### Prerequisites
-
-```bash
-# Install system dependencies
-apt install python3 python3-pip nodejs npm nginx certbot python3-certbot-nginx
-
-# Create system user
-useradd -m -s /bin/bash smc
-
-# Clone repo
-git clone https://github.com/your-org/smart-money-concepts /opt/smart-money-concepts
-chown -R smc:smc /opt/smart-money-concepts
-```
-
-### Backend Setup
-
-```bash
-cd /opt/smart-money-concepts
-
-# Create virtualenv and install
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e . uvicorn[standard]
-
-# Configure
-cp .env.template .env
-# Edit .env with your exchange keys and symbols
-
-# Copy systemd service
-cp deploy/smc-api.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable smc-api
-systemctl start smc-api
-```
-
-### Frontend Setup
-
-```bash
-cd /opt/smart-money-concepts/frontend
-npm ci
-npm run build
-
-cp ../deploy/smc-frontend.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable smc-frontend
-systemctl start smc-frontend
-```
-
-### Nginx Reverse Proxy
-
-```bash
-cp deploy/nginx.conf /etc/nginx/sites-available/trading
-ln -s /etc/nginx/sites-available/trading /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-
-# Optional: HTTPS with Let's Encrypt
-certbot --nginx -d trading.example.com
-```
-
-### Directory Layout
-
-```
-/opt/smart-money-concepts/
-├── smartmoneyconcepts/    # Python package
-├── frontend/              # Next.js app
-├── deploy/                # Nginx + systemd configs
-├── dashboard.db           # SQLite database (auto-created)
-└── .env                   # Environment variables
-```
-
-### Managing
-
-```bash
-# View logs
-journalctl -u smc-api -f
-journalctl -u smc-frontend -f
-
-# Restart
-systemctl restart smc-api smc-frontend
-
-# Update
-cd /opt/smart-money-concepts
-git pull
-systemctl restart smc-api
-cd frontend && npm ci && npm run build && systemctl restart smc-frontend
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Disclaimer
 
-This project is for educational purposes only. Do not use this indicator as a sole decision maker for your trades. Always use proper risk management and do your own research before making any trades. The author of this project is not responsible for any losses you may incur.
+For educational purposes only. Not financial advice. Use at your own risk.
