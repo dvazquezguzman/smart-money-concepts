@@ -1,0 +1,13 @@
+# config.example.yaml — copy to config.yaml and edit
+data_dir: ./data
+exchange: binance
+poll_interval_seconds: 5
+risk:
+  daily_loss_limit_quote: 100.0
+  max_open_positions: 3
+  max_trades_per_day: 20
+  symbol_allowlist: ["BTC/USDT"]
+paper:
+  starting_balance_quote: 1000.0
+  fee_rate: 0.001
+  slippage_bps: 2

@@ -1,0 +1,40 @@
+[project]
+name = "smc-dashboard"
+version = "0.1.0"
+requires-python = ">=3.12"
+description = "SMC trading dashboard engine"
+# Required workaround: setup.py defines metadata fields setuptools tries to merge into [project]; declaring them dynamic avoids the long_description AttributeError.
+dynamic = ["readme", "authors", "keywords", "classifiers", "urls"]
+dependencies = [
+  "pandas>=2.0.2",
+  "numpy>=1.24.3",
+  "smartmoneyconcepts",
+  "ccxt>=4.3.0",
+  "sqlmodel>=0.0.22",
+  "pyyaml>=6.0.2",
+  "cryptography>=43.0.0",
+  "python-dateutil>=2.9.0",
+  # numba is pulled transitively by smartmoneyconcepts; do not pin here.
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "freezegun>=1.5.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+  "testnet: requires live exchange testnet credentials (opt-in)",
+]
+# Treat ResourceWarning (and pytest's unraisable wrapper) as errors so a leaked SQLAlchemy engine fails CI rather than only emitting noise on -W error.
+filterwarnings = [
+  "error::ResourceWarning",
+  "error::pytest.PytestUnraisableExceptionWarning",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*", "strategies*"]
