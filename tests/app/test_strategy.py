@@ -55,3 +55,15 @@ def test_on_candle_can_return_signal() -> None:
     sig = _Dummy().on_candle(ctx)
     assert sig is not None
     assert sig.side == "buy"
+
+
+def test_init_subclass_fires_on_bad_param() -> None:
+    with pytest.raises(ValueError, match="default 2.0 outside"):
+        class _Bad(Strategy):  # noqa: F841 - declaration is the test
+            name = "bad"
+            symbol = "BTC/USDT"
+            timeframe = "15m"
+            params = [
+                ParamSpec(name="x", kind="float", default=2.0,
+                          min=0.0, max=1.0),
+            ]
