@@ -4,3 +4,11 @@ smartmoneyconcepts.egg-info
 .DS_Store
 __pycache__
 .venv
+
+# SMC dashboard runtime
+/data/*
+!/data/.gitkeep
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
