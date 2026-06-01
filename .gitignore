@@ -11,3 +11,6 @@ __pycache__
 node_modules/
 .next/
 out/
+.opencode/
+.superpowers/
+graphify-out/

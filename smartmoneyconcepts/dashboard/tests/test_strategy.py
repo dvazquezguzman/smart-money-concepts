@@ -135,6 +135,144 @@ class TestEvaluateCondition(unittest.TestCase):
         result = _evaluate_condition(cond, candle, self.indicators, 0, self.candles)
         self.assertIsNone(result)
 
+    def test_liquidity_sweep_triggers(self):
+        indicators = {
+            "fvg": {"FVG": [], "Top": [], "Bottom": []},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [], "CHOCH": []},
+            "liquidity": {"Liquidity": [1], "Level": [50000]},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="liquidity_sweep", direction="bullish")
+        result = _evaluate_condition(cond, candle, indicators, 0, self.candles)
+        self.assertEqual(result, "bullish")
+
+    def test_liquidity_sweep_no_level(self):
+        indicators = {
+            "fvg": {"FVG": [], "Top": [], "Bottom": []},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [], "CHOCH": []},
+            "liquidity": {"Liquidity": [0], "Level": [0]},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="liquidity_sweep", direction="bullish")
+        result = _evaluate_condition(cond, candle, indicators, 0, self.candles)
+        self.assertIsNone(result)
+
+    def test_bos_triggers_bullish(self):
+        indicators = {
+            "fvg": {"FVG": [], "Top": [], "Bottom": []},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [1], "CHOCH": [0]},
+            "liquidity": {"Liquidity": [], "Level": []},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="bos", direction="bullish")
+        result = _evaluate_condition(cond, candle, indicators, 0, self.candles)
+        self.assertEqual(result, "bullish")
+
+    def test_bos_no_match(self):
+        indicators = {
+            "fvg": {"FVG": [], "Top": [], "Bottom": []},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [0], "CHOCH": [0]},
+            "liquidity": {"Liquidity": [], "Level": []},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="bos", direction="bullish")
+        result = _evaluate_condition(cond, candle, indicators, 0, self.candles)
+        self.assertIsNone(result)
+
+    def test_choch_triggers_bearish(self):
+        indicators = {
+            "fvg": {"FVG": [], "Top": [], "Bottom": []},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [0], "CHOCH": [-1]},
+            "liquidity": {"Liquidity": [], "Level": []},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="choch", direction="bearish")
+        result = _evaluate_condition(cond, candle, indicators, 0, self.candles)
+        self.assertEqual(result, "bearish")
+
+    def test_trend_bullish_swings(self):
+        indicators = {
+            "fvg": {"FVG": [], "Top": [], "Bottom": []},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [], "CHOCH": []},
+            "liquidity": {"Liquidity": [], "Level": []},
+            "swings": {"High": [101, 105, 110], "Low": [None, None, None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="trend", direction="bullish", params={"lookback": 5})
+        result = _evaluate_condition(cond, candle, indicators, 2, self.candles)
+        self.assertEqual(result, "bullish")
+
+    def test_trend_bearish_no_lows(self):
+        indicators = {
+            "fvg": {"FVG": [], "Top": [], "Bottom": []},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [], "CHOCH": []},
+            "liquidity": {"Liquidity": [], "Level": []},
+            "swings": {"High": [None, None, None], "Low": [None, None, None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="trend", direction="bearish", params={"lookback": 5})
+        result = _evaluate_condition(cond, candle, indicators, 2, self.candles)
+        self.assertIsNone(result)
+
+    def test_multi_condition_and(self):
+        candle = _candle(datetime(2026, 5, 1, 10, 5), o=101, h=105, l=100, c=104)
+        indicators = {
+            "fvg": {"FVG": [1], "Top": [104], "Bottom": [101]},
+            "ob": {"OB": [], "Top": [], "Bottom": []},
+            "bos_choch": {"BOS": [], "CHOCH": []},
+            "liquidity": {"Liquidity": [], "Level": []},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        s = Strategy(
+            name="multi",
+            timeframe="1m",
+            symbol="X",
+            entry_conditions=[
+                Condition(
+                    type="fvg_mitigation", direction="bullish", params={"lookback": 10}
+                ),
+                Condition(
+                    type="session", direction="bullish", params={"session": "London"}
+                ),
+            ],
+            exit_conditions=[ExitCondition(type="target", value=2.0)],
+        )
+        result = StrategyEvaluator()._check_entry(candle, s, indicators, 1, [candle])
+        self.assertEqual(result, "buy")
+
+    def test_trailing_stop_updates_sl(self):
+        from smartmoneyconcepts.dashboard.strategy.evaluator import _Position
+
+        base = datetime(2026, 5, 1, 10, 0)
+        pos = _Position(
+            trade=Trade("t", "buy", 0, base, 100, quantity=1),
+            entry_index=0,
+            sl_price=99.0,
+            tp_price=105.0,
+        )
+        strategy = Strategy(
+            name="t",
+            timeframe="1m",
+            symbol="X",
+            entry_conditions=[],
+            exit_conditions=[ExitCondition(type="trailing_stop", trail_activation=2.0)],
+        )
+        eval = StrategyEvaluator()
+        eval._update_trailing(pos, _candle(base, o=103, h=106, l=102, c=105), strategy)
+        self.assertGreater(pos.sl_price, 99.0)
+
 
 class TestEvaluatorRun(unittest.TestCase):
     def setUp(self):

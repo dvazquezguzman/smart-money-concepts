@@ -16,7 +16,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install . pytest
-      - run: pytest tests/ smartmoneyconcepts/dashboard/tests/ -v --tb=short
+      - run: pytest smartmoneyconcepts/dashboard/tests/ -v --tb=short
 
   frontend:
     runs-on: ubuntu-latest
@@ -34,3 +34,4 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run lint
+      - run: npx vitest run

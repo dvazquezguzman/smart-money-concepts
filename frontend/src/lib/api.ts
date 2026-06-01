@@ -207,6 +207,18 @@ export async function getExchangeKeyStatus(): Promise<{ configured: boolean }> {
   return fetchJson(`${API_BASE}/api/trading/exchange/keys/status`);
 }
 
+export async function getHealth(): Promise<{ status: string }> {
+  return fetchJson(`${API_BASE}/health`);
+}
+
+export async function getPaperHistory(): Promise<any[]> {
+  return fetchJson(`${API_BASE}/api/trading/paper/history`);
+}
+
+export async function getLiveHistory(): Promise<any[]> {
+  return fetchJson(`${API_BASE}/api/trading/live/history`);
+}
+
 export async function saveExchangeKeys(
   exchangeId: string,
   apiKey: string,

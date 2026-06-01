@@ -140,6 +140,90 @@ class TestPaperTradingEngine(unittest.TestCase):
     def test_positions_empty_initially(self):
         self.assertEqual(self.engine.get_positions(), [])
 
+    def test_exit_slippage_applied(self):
+        from smartmoneyconcepts.dashboard.execution.paper import SLIPPAGE_PCT
+        from smartmoneyconcepts.dashboard.execution.orders import Position
+
+        pos = Position(
+            symbol="BTC/USDT",
+            side="buy",
+            quantity=1,
+            entry_price=100,
+            current_price=100,
+            sl_price=99,
+            tp_price=105,
+            strategy="test",
+            mode="paper",
+        )
+        self.engine.positions.append(pos)
+        candle = Candle(
+            "BTC/USDT", datetime(2026, 1, 1, 10, 0), 98, 98.5, 97, 97.5, 1000, "1m"
+        )
+        self.engine._check_exit(pos, candle, 50)
+        self.assertEqual(len(self.engine.positions), 0)
+        expected_slippage = 99 * (1 - SLIPPAGE_PCT / 100)
+        self.assertAlmostEqual(pos.realized_pnl, (expected_slippage - 100) * 1)
+
+    def test_entry_no_slippage(self):
+        from smartmoneyconcepts.dashboard.execution.orders import Order, OrderType
+
+        order = Order(
+            symbol="BTC/USDT",
+            side="buy",
+            order_type=OrderType.MARKET,
+            quantity=0.1,
+            price=100,
+            strategy="test",
+        )
+        self.engine._fill_order(order, 100.0)
+        self.assertEqual(order.avg_fill_price, 100.0)
+
+    def test_trailing_stop_not_applied_in_paper(self):
+        candle = Candle(
+            "BTC/USDT", datetime(2026, 1, 1, 10, 5), 105, 110, 104, 108, 1000, "1m"
+        )
+        strategy = Strategy(
+            name="ts",
+            timeframe="1m",
+            symbol="BTC/USDT",
+            entry_conditions=[Condition(type="bos", direction="bullish")],
+            exit_conditions=[ExitCondition(type="trailing_stop", trail_activation=2.0)],
+        )
+        self.engine.start(strategy)
+        self.engine.on_candle(candle)
+        self.assertTrue(self.engine.running)
+
+    def test_multiple_positions_blocked_by_max(self):
+        from smartmoneyconcepts.dashboard.execution.orders import Position
+
+        strategy = Strategy(
+            name="mp",
+            timeframe="1m",
+            symbol="BTC/USDT",
+            entry_conditions=[
+                Condition(
+                    type="fvg_mitigation", direction="bullish", params={"lookback": 10}
+                )
+            ],
+            exit_conditions=[ExitCondition(type="target", value=2.0)],
+            risk=RiskConfig(position_size_pct=1.0, max_positions=1),
+        )
+        self.engine.positions.append(
+            Position(
+                symbol="BTC/USDT",
+                side="buy",
+                quantity=0.1,
+                entry_price=100,
+                current_price=101,
+                strategy="mp",
+                mode="paper",
+            )
+        )
+        ok, _ = self.engine.risk.can_open_position(
+            strategy.risk, len(self.engine.positions), "buy"
+        )
+        self.assertFalse(ok)
+
 
 if __name__ == "__main__":
     unittest.main()

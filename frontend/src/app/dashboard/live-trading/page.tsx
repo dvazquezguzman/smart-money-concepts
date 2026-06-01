@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getStrategies, getStrategy } from "@/lib/api";
+import { getStrategies, getStrategy, getExchangeKeyStatus } from "@/lib/api";
 import type { StrategyRecord } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -39,6 +39,7 @@ export default function LiveTradingPage() {
   const [strategies, setStrategies] = useState<StrategyRecord[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [keysConfigured, setKeysConfigured] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +57,7 @@ export default function LiveTradingPage() {
   useEffect(() => {
     load();
     getStrategies().then(setStrategies).catch(() => {});
+    getExchangeKeyStatus().then((s) => setKeysConfigured(s.configured)).catch(() => {});
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
   }, [load]);
@@ -132,6 +134,15 @@ export default function LiveTradingPage() {
         </div>
       )}
 
+      {keysConfigured === false && (
+        <div className="bg-amber-900/50 border border-amber-700 text-amber-300 rounded p-3 text-sm mb-4">
+          Exchange API keys not configured.{" "}
+          <a href="/dashboard/config" className="underline hover:text-amber-200">
+            Configure in Settings
+          </a>
+        </div>
+      )}
+
       {summary && (
         <div className="grid grid-cols-4 gap-4 mb-6">
           <StatCard label="Exchange" value={summary.exchange} />
@@ -175,7 +186,7 @@ export default function LiveTradingPage() {
           ) : (
             <button
               onClick={handleStart}
-              disabled={!selectedId || loading}
+              disabled={!selectedId || loading || keysConfigured === false}
               className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
             >
               {loading ? "Starting..." : "Start"}

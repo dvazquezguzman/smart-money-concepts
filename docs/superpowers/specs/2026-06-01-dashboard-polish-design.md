@@ -95,6 +95,8 @@ No backend changes needed -- endpoint already exists.
 
 **Config:** `frontend/vitest.config.ts` with jsdom environment.
 
+**Setup:** `frontend/src/test/setup.ts` -- single import of `@testing-library/jest-dom` to register DOM matchers (`toBeInTheDocument`, `toHaveClass`, etc.) in every test file.
+
 **Tests:**
 - `overview/page.test.tsx` — renders stat cards, loading state, error state
 - `history/page.test.tsx` — renders two tabs, trade rows, empty state

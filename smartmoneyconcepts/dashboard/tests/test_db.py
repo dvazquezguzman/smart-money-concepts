@@ -200,5 +200,42 @@ class TestTradeRepository(unittest.TestCase):
         self.assertEqual(len(positions), 1)
 
 
+class TestDBEdgeCases(unittest.TestCase):
+    def setUp(self):
+        self.db = sqlite3.connect(":memory:")
+        self.repo = SQLiteCandleRepository(self.db)
+        self.repo.create_tables()
+        self.repo.create_tables_for_symbol("BTC/USDT")
+        self.repo.create_tables_for_symbol("ETH/USDT")
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_two_symbols_interleaved(self):
+        from datetime import timedelta
+
+        base = datetime(2026, 5, 1, 0, 0)
+        btc = Candle("BTC/USDT", base, 100, 105, 99, 104, 1000, "1m")
+        eth = Candle("ETH/USDT", base, 10, 11, 9, 10.5, 2000, "1m")
+        self.repo.save_candles([btc, eth])
+        btc_result = self.repo.get_candles("BTC/USDT", "1m")
+        eth_result = self.repo.get_candles("ETH/USDT", "1m")
+        self.assertEqual(len(btc_result), 1)
+        self.assertEqual(btc_result[0].symbol, "BTC/USDT")
+        self.assertEqual(len(eth_result), 1)
+        self.assertEqual(eth_result[0].symbol, "ETH/USDT")
+
+    def test_non_existent_symbol_raises_error(self):
+        with self.assertRaises(Exception):
+            self.repo.get_candles("FAKE/PAIR", "1m")
+
+    def test_config_overwrite_preserves_key(self):
+        config_repo = SQLiteConfigRepository(self.db)
+        config_repo.save_config("k", "v1")
+        config_repo.save_config("k", "v2")
+        result = config_repo.get_config("k")
+        self.assertEqual(result, "v2")
+
+
 if __name__ == "__main__":
     unittest.main()
