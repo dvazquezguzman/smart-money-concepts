@@ -196,3 +196,28 @@ Less is more – each pull request should be minimal, focusing on a single funct
 ## Disclaimer
 
 This project is for educational purposes only. Do not use this indicator as a sole decision maker for your trades. Always use proper risk management and do your own research before making any trades. The author of this project is not responsible for any losses you may incur.
+
+## Trading dashboard (alpha)
+
+This repo also hosts an asyncio-based trading engine that uses the
+`smartmoneyconcepts` library to paper-trade strategies against a live
+crypto exchange via CCXT. There is no web UI yet (Plan 2). Today you can:
+
+- Define strategies as Python files under `strategies/`, subclassing
+  `app.strategy.Strategy` and declaring `ParamSpec` entries that future
+  UI work will render as form controls.
+- Run the engine in paper mode with one or more strategies:
+
+  ```bash
+  pip install -e ".[dev]"
+  cp config.example.yaml config.yaml
+  python -m app.runner --config config.yaml --strategy strategies.example_smc
+  ```
+
+- Inspect orders, fills, positions, and trades in `data/smc.db` (SQLite).
+
+Run the full engine test suite with:
+
+```bash
+pytest tests/app -v
+```
