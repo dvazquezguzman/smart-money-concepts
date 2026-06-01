@@ -4,8 +4,6 @@ mirror case. Sizes a fixed quantity, sets SL at the FVG far edge and TP
 at fill price + R*risk."""
 from __future__ import annotations
 
-import math
-
 from app.strategy import Context, ParamSpec, Signal, Strategy
 
 
