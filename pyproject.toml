@@ -30,6 +30,11 @@ testpaths = ["tests"]
 markers = [
   "testnet: requires live exchange testnet credentials (opt-in)",
 ]
+# Treat ResourceWarning (and pytest's unraisable wrapper) as errors so a leaked SQLAlchemy engine fails CI rather than only emitting noise on -W error.
+filterwarnings = [
+  "error::ResourceWarning",
+  "error::pytest.PytestUnraisableExceptionWarning",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*", "strategies*"]

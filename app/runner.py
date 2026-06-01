@@ -112,6 +112,7 @@ async def _amain(config_path: Path, strategy_modules: list[str]) -> None:
         await consume_task
     except asyncio.CancelledError:
         pass
+    db_engine.dispose()
 
 
 def main() -> None:
