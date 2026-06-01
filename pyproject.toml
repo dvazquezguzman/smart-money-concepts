@@ -3,6 +3,7 @@ name = "smc-dashboard"
 version = "0.1.0"
 requires-python = ">=3.12"
 description = "SMC trading dashboard engine"
+# Required workaround: setup.py defines metadata fields setuptools tries to merge into [project]; declaring them dynamic avoids the long_description AttributeError.
 dynamic = ["readme", "authors", "keywords", "classifiers", "urls"]
 dependencies = [
   "pandas>=2.0.2",
@@ -13,6 +14,7 @@ dependencies = [
   "pyyaml>=6.0.2",
   "cryptography>=43.0.0",
   "python-dateutil>=2.9.0",
+  # numba is pulled transitively by smartmoneyconcepts; do not pin here.
 ]
 
 [project.optional-dependencies]
@@ -28,9 +30,6 @@ testpaths = ["tests"]
 markers = [
   "testnet: requires live exchange testnet credentials (opt-in)",
 ]
-
-[tool.setuptools]
-py-modules = []
 
 [tool.setuptools.packages.find]
 include = ["app*", "strategies*"]

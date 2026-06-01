@@ -13,7 +13,6 @@ def eurusd_15m_df() -> pd.DataFrame:
     """Load the bundled EURUSD 15M test data as a lowercase-OHLCV DataFrame."""
     df = pd.read_csv(EURUSD_15M_CSV)
     df.columns = [c.lower() for c in df.columns]
-    df = df.rename(columns={"tickvol": "tickvol", "spread": "spread"})
     df["date"] = pd.to_datetime(df["date"])
     df = df.set_index("date")
     return df[["open", "high", "low", "close", "volume"]]
