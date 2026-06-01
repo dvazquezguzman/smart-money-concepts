@@ -1,0 +1,24 @@
+name: ICT OB Liquidity Sweep
+timeframe: 15m
+symbol: ""
+entry_conditions:
+  - type: liquidity_sweep
+    direction: bullish
+    lookback: 5
+  - type: ob_break
+    direction: bullish
+    lookback: 10
+  - type: bos
+    direction: bullish
+    lookback: 5
+exit_conditions:
+  - type: target
+    value: 1.5
+  - type: stop_loss
+    value: 1.0
+  - type: trailing_stop
+    value: 0.5
+    trail_activation: 1.0
+risk:
+  position_size_pct: 1.0
+  max_positions: 1

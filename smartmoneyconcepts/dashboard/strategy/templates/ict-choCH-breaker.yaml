@@ -1,0 +1,21 @@
+name: ICT CHOCH Breaker
+timeframe: 1H
+symbol: ""
+entry_conditions:
+  - type: choch
+    direction: bullish
+    lookback: 5
+  - type: ob_break
+    direction: bullish
+    lookback: 15
+  - type: session
+    direction: bullish
+    session: NewYork
+exit_conditions:
+  - type: target
+    value: 2.5
+  - type: stop_loss
+    value: 1.0
+risk:
+  position_size_pct: 0.5
+  max_positions: 1
