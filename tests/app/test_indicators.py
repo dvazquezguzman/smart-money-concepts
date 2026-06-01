@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 from smartmoneyconcepts import smc
 
-from app.indicators import IndicatorCache
+from app.indicators import IndicatorCache, INDICATOR_KEYS
 
 
 def test_cache_outputs_match_raw_smc(eurusd_15m_df: pd.DataFrame) -> None:
@@ -29,6 +28,4 @@ def test_cache_keys_are_stable() -> None:
     }, index=pd.date_range("2024-01-01", periods=3, freq="15min"))
     cache = IndicatorCache(swing_length=2)
     snap = cache.recompute(df)
-    assert set(snap.keys()) == {
-        "swing_highs_lows", "fvg", "bos_choch", "ob", "liquidity", "retracements",
-    }
+    assert set(snap.keys()) == set(INDICATOR_KEYS)
