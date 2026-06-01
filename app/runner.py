@@ -10,7 +10,7 @@ import asyncio
 import importlib
 import logging
 import signal
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import ccxt.async_support as ccxt_async
