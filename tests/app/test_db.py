@@ -39,3 +39,5 @@ def test_init_db_creates_all_tables(tmp_data_dir: Path) -> None:
         states = session.exec(select(StrategyState)).all()
         assert len(candles) == 1
         assert states[0].mode == "paper"
+        assert candles[0].ts.tzinfo is not None
+        assert candles[0].ts == now
