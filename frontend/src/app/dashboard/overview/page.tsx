@@ -100,20 +100,20 @@ export default function OverviewPage() {
         <div className="grid grid-cols-5 gap-4">
           <StatCard
             label="Paper Balance"
-            value={data?.paper ? `$${data.paper.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "Not connected"}
+            value={data?.paper?.balance != null ? `$${data.paper.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "Not connected"}
           />
           <StatCard
             label="Paper Equity"
-            value={data?.paper ? `$${data.paper.equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "Not connected"}
+            value={data?.paper?.equity != null ? `$${data.paper.equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "Not connected"}
           />
           <StatCard
             label="Realized PnL"
-            value={data?.paper ? formatPnl(data.paper.realized_pnl) : "Not connected"}
-            color={data?.paper ? (data.paper.realized_pnl >= 0 ? "text-green-400" : "text-red-400") : undefined}
+            value={data?.paper?.realized_pnl != null ? formatPnl(data.paper.realized_pnl) : "Not connected"}
+            color={data?.paper?.realized_pnl != null ? (data.paper.realized_pnl >= 0 ? "text-green-400" : "text-red-400") : undefined}
           />
           <StatCard
             label="Paper Positions"
-            value={data?.paper ? String(data.paper.open_positions) : "Not connected"}
+            value={data?.paper?.open_positions != null ? String(data.paper.open_positions) : "Not connected"}
           />
           <StatCard
             label="Strategies"
@@ -127,17 +127,17 @@ export default function OverviewPage() {
           />
           <StatCard
             label="Live Status"
-            value={data?.live ? (data.live.connected ? "Connected" : "Disconnected") : "Not connected"}
-            color={data?.live ? (data.live.connected ? "text-green-400" : "text-red-400") : undefined}
+            value={data?.live?.connected != null ? (data.live.connected ? "Connected" : "Disconnected") : "Not connected"}
+            color={data?.live?.connected != null ? (data.live.connected ? "text-green-400" : "text-red-400") : undefined}
           />
           <StatCard
             label="Engine State"
-            value={data?.live ? (data.live.running ? "Running" : "Stopped") : "Not connected"}
-            color={data?.live ? (data.live.running ? "text-green-400" : "text-gray-400") : undefined}
+            value={data?.live?.running != null ? (data.live.running ? "Running" : "Stopped") : "Not connected"}
+            color={data?.live?.running != null ? (data.live.running ? "text-green-400" : "text-gray-400") : undefined}
           />
           <StatCard
             label="Live Positions"
-            value={data?.live ? String(data.live.open_positions) : "Not connected"}
+            value={data?.live?.open_positions != null ? String(data.live.open_positions) : "Not connected"}
           />
           <StatCard
             label="Server Health"
@@ -156,7 +156,8 @@ export default function OverviewPage() {
   );
 }
 
-function formatPnl(pnl: number): string {
+function formatPnl(pnl: number | null | undefined): string {
+  if (pnl == null) return "Not connected";
   const sign = pnl >= 0 ? "+" : "";
   return `${sign}$${pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 }

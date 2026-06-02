@@ -39,6 +39,10 @@ Entry conditions use AND logic -- all conditions must match for a position to op
 | `choch` | bullish, bearish | -- | Change of Character detected |
 | `session` | bullish, bearish | `session` (string) | Candle falls within a trading session |
 | `trend` | bullish, bearish | `lookback` (int) | Consecutive higher highs (bullish) or lower lows (bearish) |
+| `vwap` | bullish, bearish | -- | Price closes above (bullish) or below (bearish) VWAP |
+| `ema` | bullish, bearish | `period` (int) | Price closes above (bullish) or below (bearish) the EMA |
+| `donchian_trend` | bullish, bearish | -- | Donchian channel midpoint is rising (bullish) or falling (bearish) |
+| `hull_suite` | bullish, bearish | -- | Hull Moving Average is rising (bullish) or falling (bearish) |
 
 ### Session Values
 

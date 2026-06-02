@@ -74,6 +74,70 @@ class IndicatorService:
             "candle_count": len(candles),
         }
 
+        # --- Custom indicators ---
+        typical_price = (ohlc["high"] + ohlc["low"] + ohlc["close"]) / 3
+        vwap = (typical_price * ohlc["volume"]).cumsum() / ohlc["volume"].cumsum()
+        result["vwap"] = vwap.replace({np.nan: None}).tolist()
+
+        result["ema_9"] = (
+            ohlc["close"].ewm(span=9).mean().replace({np.nan: None}).tolist()
+        )
+        result["ema_21"] = (
+            ohlc["close"].ewm(span=21).mean().replace({np.nan: None}).tolist()
+        )
+
+        don_upper = ohlc["high"].rolling(20).max()
+        don_lower = ohlc["low"].rolling(20).min()
+        don_mid = (don_upper + don_lower) / 2
+        don_trend = np.where(don_mid.diff() > 0, 1, np.where(don_mid.diff() < 0, -1, 0))
+        result["donchian"] = {
+            "upper": don_upper.replace({np.nan: None}).tolist(),
+            "lower": don_lower.replace({np.nan: None}).tolist(),
+            "mid": don_mid.replace({np.nan: None}).tolist(),
+            "trend": pd.Series(don_trend).replace({np.nan: None}).tolist(),
+        }
+
+        half = ohlc["close"].ewm(span=10).mean()
+        full = ohlc["close"].ewm(span=20).mean()
+        raw = 2 * half - full
+        hull = raw.ewm(span=int(np.sqrt(20))).mean()
+        drift = hull.diff()
+        hull_dir = np.where(drift > 0, 1, np.where(drift < 0, -1, 0))
+        result["hull"] = {
+            "hull": hull.replace({np.nan: None}).tolist(),
+            "direction": pd.Series(hull_dir).replace({np.nan: None}).tolist(),
+        }
+
+        prev = ohlc["close"].shift(1)
+        tr = pd.concat(
+            [
+                ohlc["high"] - ohlc["low"],
+                (ohlc["high"] - prev).abs(),
+                (ohlc["low"] - prev).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
+        atr = tr.rolling(10).mean()
+        hl2 = (ohlc["high"] + ohlc["low"]) / 2
+        st_upper = hl2 + 3.0 * atr
+        st_lower = hl2 - 3.0 * atr
+        st_trend = pd.Series(index=ohlc.index, dtype=float)
+        for i in range(len(st_trend)):
+            if i == 0:
+                st_trend.iloc[i] = 1
+            else:
+                if ohlc["close"].iloc[i] > st_upper.iloc[i - 1]:
+                    st_trend.iloc[i] = -1
+                elif ohlc["close"].iloc[i] < st_lower.iloc[i - 1]:
+                    st_trend.iloc[i] = 1
+                else:
+                    st_trend.iloc[i] = st_trend.iloc[i - 1]
+        result["supertrend"] = {
+            "trend": st_trend.replace({np.nan: None}).tolist(),
+            "upper": st_upper.replace({np.nan: None}).tolist(),
+            "lower": st_lower.replace({np.nan: None}).tolist(),
+        }
+
         self._cache[key] = {"data": result, "last_timestamp": last_ts}
         return result
 

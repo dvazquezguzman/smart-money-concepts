@@ -13,6 +13,7 @@ class _Position:
     sl_price: float
     tp_price: float
     bars_held: int = 0
+    supertrend_was_direction: Optional[str] = None
 
 
 SESSION_RANGES = {
@@ -113,17 +114,40 @@ class StrategyEvaluator:
             return None
 
         sl_pct = strategy.risk.position_size_pct * 0.01
+        has_trend_exit = any(e.type == "trend_exit" for e in strategy.exit_conditions)
+
         if side == "buy":
-            # Use low of entry candle or OB bottom as SL
-            ob_bottom = _last_ob_boundary(indicators, idx, "bottom") or (
-                candle.low * 0.99
-            )
-            sl_price = ob_bottom
+            if has_trend_exit:
+                swings = indicators.get("swings", {})
+                lows = swings.get("Low", [])
+                recent_low = None
+                for i in range(idx, max(idx - 20, -1), -1):
+                    if i < len(lows) and lows[i] is not None and lows[i] != 0:
+                        recent_low = lows[i]
+                        break
+                sl_price = recent_low * 0.995 if recent_low else candle.low * 0.99
+            else:
+                ob_bottom = _last_ob_boundary(indicators, idx, "bottom") or (
+                    candle.low * 0.99
+                )
+                sl_price = ob_bottom
             tp_ratio = self._get_tp_ratio(strategy)
             tp_price = entry_price + (entry_price - sl_price) * tp_ratio
         else:
-            ob_top = _last_ob_boundary(indicators, idx, "top") or (candle.high * 1.01)
-            sl_price = ob_top
+            if has_trend_exit:
+                swings = indicators.get("swings", {})
+                highs = swings.get("High", [])
+                recent_high = None
+                for i in range(idx, max(idx - 20, -1), -1):
+                    if i < len(highs) and highs[i] is not None and highs[i] != 0:
+                        recent_high = highs[i]
+                        break
+                sl_price = recent_high * 1.005 if recent_high else candle.high * 1.01
+            else:
+                ob_top = _last_ob_boundary(indicators, idx, "top") or (
+                    candle.high * 1.01
+                )
+                sl_price = ob_top
             tp_ratio = self._get_tp_ratio(strategy)
             tp_price = entry_price - (sl_price - entry_price) * tp_ratio
 
@@ -146,6 +170,15 @@ class StrategyEvaluator:
                 return e.value
         return 1.5
 
+    def _track_supertrend(self, pos: _Position, indicators: dict, idx: int):
+        st = indicators.get("supertrend", {})
+        trend = st.get("trend", [])
+        if idx < len(trend) and trend[idx] is not None:
+            if trend[idx] == 1 and pos.supertrend_was_direction is None:
+                pos.supertrend_was_direction = "bullish"
+            elif trend[idx] == -1 and pos.supertrend_was_direction is None:
+                pos.supertrend_was_direction = "bearish"
+
     def _check_exit(
         self,
         pos: _Position,
@@ -154,7 +187,59 @@ class StrategyEvaluator:
         indicators: dict,
         idx: int,
     ) -> bool:
+        self._track_supertrend(pos, indicators, idx)
+
         for e in strategy.exit_conditions:
+            if e.type == "trend_exit":
+                st = indicators.get("supertrend", {})
+                st_trend = st.get("trend", [])
+                st_val = st_trend[idx] if idx < len(st_trend) else None
+                ema_21 = indicators.get("ema_21", [])
+                ema_val = ema_21[idx] if idx < len(ema_21) else None
+
+                if pos.trade.side == "buy":
+                    if pos.supertrend_was_direction == "bullish" and st_val == -1:
+                        pos.trade.exit_index = idx
+                        pos.trade.exit_time = candle.timestamp
+                        pos.trade.exit_price = candle.close
+                        pos.trade.exit_reason = "supertrend_flip"
+                        pos.trade.pnl = _calc_pnl(pos.trade)
+                        pos.trade.status = "closed"
+                        return True
+                    if (
+                        pos.supertrend_was_direction != "bullish"
+                        and ema_val is not None
+                        and candle.close < ema_val
+                    ):
+                        pos.trade.exit_index = idx
+                        pos.trade.exit_time = candle.timestamp
+                        pos.trade.exit_price = candle.close
+                        pos.trade.exit_reason = "ema_exit"
+                        pos.trade.pnl = _calc_pnl(pos.trade)
+                        pos.trade.status = "closed"
+                        return True
+                else:
+                    if pos.supertrend_was_direction == "bearish" and st_val == 1:
+                        pos.trade.exit_index = idx
+                        pos.trade.exit_time = candle.timestamp
+                        pos.trade.exit_price = candle.close
+                        pos.trade.exit_reason = "supertrend_flip"
+                        pos.trade.pnl = _calc_pnl(pos.trade)
+                        pos.trade.status = "closed"
+                        return True
+                    if (
+                        pos.supertrend_was_direction != "bearish"
+                        and ema_val is not None
+                        and candle.close > ema_val
+                    ):
+                        pos.trade.exit_index = idx
+                        pos.trade.exit_time = candle.timestamp
+                        pos.trade.exit_price = candle.close
+                        pos.trade.exit_reason = "ema_exit"
+                        pos.trade.pnl = _calc_pnl(pos.trade)
+                        pos.trade.status = "closed"
+                        return True
+
             if e.type == "stop_loss":
                 sl = e.value
                 if pos.trade.side == "buy":
@@ -339,5 +424,41 @@ def _evaluate_condition(
             return "bullish"
         if cond.direction == "bearish" and len(recent_lows) >= 2:
             return "bearish"
+
+    elif cond.type == "vwap":
+        vwap = indicators.get("vwap", [])
+        if idx < len(vwap) and vwap[idx] is not None:
+            if cond.direction == "bullish" and candle.close > vwap[idx]:
+                return "bullish"
+            elif cond.direction == "bearish" and candle.close < vwap[idx]:
+                return "bearish"
+
+    elif cond.type == "ema":
+        period = cond.params.get("period", 9)
+        key = f"ema_{period}"
+        vals = indicators.get(key, [])
+        if idx < len(vals) and vals[idx] is not None:
+            if cond.direction == "bullish" and candle.close > vals[idx]:
+                return "bullish"
+            elif cond.direction == "bearish" and candle.close < vals[idx]:
+                return "bearish"
+
+    elif cond.type == "donchian_trend":
+        don = indicators.get("donchian", {})
+        trend = don.get("trend", [])
+        if idx < len(trend) and trend[idx] is not None:
+            if cond.direction == "bullish" and trend[idx] == 1:
+                return "bullish"
+            elif cond.direction == "bearish" and trend[idx] == -1:
+                return "bearish"
+
+    elif cond.type == "hull_suite":
+        hull = indicators.get("hull", {})
+        direction = hull.get("direction", [])
+        if idx < len(direction) and direction[idx] is not None:
+            if cond.direction == "bullish" and direction[idx] == 1:
+                return "bullish"
+            elif cond.direction == "bearish" and direction[idx] == -1:
+                return "bearish"
 
     return None

@@ -274,6 +274,150 @@ class TestEvaluateCondition(unittest.TestCase):
         self.assertGreater(pos.sl_price, 99.0)
 
 
+class TestCustomConditions(unittest.TestCase):
+    def test_vwap_bullish(self):
+        indicators = {
+            "vwap": [101.5],
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5), o=100, h=106, l=99, c=103)
+        cond = Condition(type="vwap", direction="bullish")
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bullish")
+
+    def test_vwap_bearish(self):
+        indicators = {
+            "vwap": [101.5],
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5), o=100, h=102, l=98, c=100)
+        cond = Condition(type="vwap", direction="bearish")
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bearish")
+
+    def test_ema_bullish(self):
+        indicators = {
+            "ema_9": [101.0],
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5), o=100, h=106, l=99, c=103)
+        cond = Condition(type="ema", direction="bullish", params={"period": 9})
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bullish")
+
+    def test_ema_bearish(self):
+        indicators = {
+            "ema_9": [102.0],
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5), o=100, h=103, l=98, c=101)
+        cond = Condition(type="ema", direction="bearish", params={"period": 9})
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bearish")
+
+    def test_donchian_trend_bullish(self):
+        indicators = {
+            "donchian": {"trend": [1]},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="donchian_trend", direction="bullish")
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bullish")
+
+    def test_donchian_trend_bearish(self):
+        indicators = {
+            "donchian": {"trend": [-1]},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="donchian_trend", direction="bearish")
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bearish")
+
+    def test_hull_suite_bullish(self):
+        indicators = {
+            "hull": {"direction": [1]},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="hull_suite", direction="bullish")
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bullish")
+
+    def test_hull_suite_bearish(self):
+        indicators = {
+            "hull": {"direction": [-1]},
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(datetime(2026, 5, 1, 10, 5))
+        cond = Condition(type="hull_suite", direction="bearish")
+        result = _evaluate_condition(cond, candle, indicators, 0, [])
+        self.assertEqual(result, "bearish")
+
+
+class TestTrendExit(unittest.TestCase):
+    def test_trend_exit_supertrend_was_bullish_flips_to_bearish(self):
+        from smartmoneyconcepts.dashboard.strategy.evaluator import _Position
+
+        base = datetime(2026, 5, 1, 10, 0)
+        pos = _Position(
+            trade=Trade("t", "buy", 0, base, 100, quantity=1),
+            entry_index=0,
+            sl_price=99.0,
+            tp_price=105.0,
+            supertrend_was_direction="bullish",
+        )
+        strategy = Strategy(
+            name="t",
+            timeframe="1m",
+            symbol="X",
+            entry_conditions=[],
+            exit_conditions=[ExitCondition(type="trend_exit")],
+        )
+        indicators = {
+            "supertrend": {"trend": [-1]},
+            "ema_21": [95],
+            "swings": {"High": [None], "Low": [None]},
+        }
+        evaluator = StrategyEvaluator()
+        result = evaluator._check_exit(
+            pos, _candle(base, o=100, h=101, l=98, c=99), strategy, indicators, 0
+        )
+        self.assertTrue(result)
+        self.assertEqual(pos.trade.exit_reason, "supertrend_flip")
+
+    def test_trend_exit_was_never_bullish_ema_cross(self):
+        from smartmoneyconcepts.dashboard.strategy.evaluator import _Position
+
+        base = datetime(2026, 5, 1, 10, 0)
+        pos = _Position(
+            trade=Trade("t", "buy", 0, base, 100, quantity=1),
+            entry_index=0,
+            sl_price=99.0,
+            tp_price=105.0,
+        )
+        strategy = Strategy(
+            name="t",
+            timeframe="1m",
+            symbol="X",
+            entry_conditions=[],
+            exit_conditions=[ExitCondition(type="trend_exit")],
+        )
+        indicators = {
+            "supertrend": {"trend": [-1]},
+            "ema_21": [101],
+            "swings": {"High": [None], "Low": [None]},
+        }
+        candle = _candle(base, o=99, h=100, l=98, c=99)
+        evaluator = StrategyEvaluator()
+
+        # Supertrend is bearish (-1), not bullish, so ema_21 exit path fires
+        result = evaluator._check_exit(pos, candle, strategy, indicators, 0)
+        self.assertTrue(result)
+        self.assertEqual(pos.trade.exit_reason, "ema_exit")
+
+
 class TestEvaluatorRun(unittest.TestCase):
     def setUp(self):
         base = datetime(2026, 5, 1, 9, 0)
