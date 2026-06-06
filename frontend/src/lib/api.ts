@@ -1,4 +1,4 @@
-import type { CandlesResponse, IndicatorsResponse, Timeframe } from "./types";
+import type { CandlesResponse, IndicatorsResponse, OptimizerResult, Timeframe } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -148,6 +148,25 @@ export async function runBacktest(
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || `Backtest failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function runOptimization(
+  definition: string,
+  start: string,
+  end: string,
+  initialCapital = 10000,
+  maxCombos = 500
+): Promise<OptimizerResult> {
+  const res = await fetch(`${API_BASE}/api/strategies/optimize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ definition, start, end, initial_capital: initialCapital, max_combos: maxCombos }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Optimization failed: ${res.status}`);
   }
   return res.json();
 }

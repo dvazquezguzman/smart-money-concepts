@@ -51,6 +51,34 @@ class Trade:
 
 
 @dataclass
+class ComboResult:
+    params: dict
+    total_trades: int
+    wins: int
+    losses: int
+    win_rate: float
+    total_pnl: float
+    profit_factor: float
+    max_drawdown: float
+    sharpe: float
+    avg_win: float
+    avg_loss: float
+    largest_win: float
+    largest_loss: float
+    avg_bars_held: float
+
+
+@dataclass
+class OptimizerResult:
+    strategy_name: str
+    symbol: str
+    timeframe: str
+    total_combos: int
+    combos_run: int
+    results: list[ComboResult] = field(default_factory=list)
+
+
+@dataclass
 class BacktestResult:
     strategy: str
     symbol: str

@@ -126,6 +126,49 @@ Load a template's YAML content.
 
 **Response:** `{ "name": "...", "definition": "<YAML string>" }`
 
+### `POST /api/strategies/optimize`
+
+Run a strategy parameter optimization (grid search). Accepts YAML with inline range syntax in place of scalar values.
+
+**Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `definition` | string | yes | YAML strategy definition with ranges |
+| `start` | string (ISO) | yes | Start date |
+| `end` | string (ISO) | yes | End date |
+| `initial_capital` | number | no | Default: 10000 |
+| `max_combos` | int | no | Max combinations to run (default: 500) |
+
+**Response:**
+```json
+{
+  "strategy_name": "Optimized Strategy",
+  "symbol": "BTC/USDT",
+  "timeframe": "5m",
+  "total_combos": 144,
+  "combos_run": 144,
+  "results": [
+    {
+      "params": {"lookback": 10, "value": 2.0},
+      "total_trades": 12,
+      "wins": 8,
+      "losses": 4,
+      "win_rate": 0.667,
+      "total_pnl": 452.0,
+      "profit_factor": 2.1,
+      "max_drawdown": 0.05,
+      "sharpe": 1.8,
+      "avg_win": 85.0,
+      "avg_loss": -42.0,
+      "largest_win": 150.0,
+      "largest_loss": -60.0,
+      "avg_bars_held": 24.0
+    }
+  ]
+}
+```
+
 ### `POST /api/strategies/backtest`
 
 Run a backtest.

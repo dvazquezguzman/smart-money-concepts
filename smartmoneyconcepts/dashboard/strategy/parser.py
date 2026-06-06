@@ -1,7 +1,17 @@
-import yaml
+from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+import yaml
+
 from .models import Strategy, Condition, ExitCondition, RiskConfig
+
+
+@dataclass
+class ParamRange:
+    path: list
+    values: list
 
 
 def parse_strategy(yaml_str: str) -> Strategy:
@@ -73,3 +83,54 @@ def serialize_strategy(strategy: Strategy) -> str:
 
 def load_template(path: Path) -> Strategy:
     return parse_strategy(path.read_text())
+
+
+def _resolve_value(val) -> list:
+    if isinstance(val, list):
+        return [float(v) if isinstance(v, (int, float)) else v for v in val]
+    if isinstance(val, dict) and "min" in val and "max" in val:
+        step = val.get("step", 1)
+        return np.arange(val["min"], val["max"] + step, step).tolist()
+    return None
+
+
+def detect_ranges(yaml_str: str) -> list[ParamRange]:
+    data = yaml.safe_load(yaml_str)
+    ranges = []
+
+    for i, cond in enumerate(data.get("entry_conditions", [])):
+        for key, val in cond.items():
+            if key in ("type", "direction"):
+                continue
+            resolved = _resolve_value(val)
+            if resolved is not None:
+                ranges.append(
+                    ParamRange(path=["entry_conditions", i, key], values=resolved)
+                )
+
+    for i, cond in enumerate(data.get("exit_conditions", [])):
+        for key, val in cond.items():
+            if key == "type":
+                continue
+            resolved = _resolve_value(val)
+            if resolved is not None:
+                ranges.append(
+                    ParamRange(path=["exit_conditions", i, key], values=resolved)
+                )
+
+    for key, val in data.get("risk", {}).items():
+        resolved = _resolve_value(val)
+        if resolved is not None:
+            ranges.append(ParamRange(path=["risk", key], values=resolved))
+
+    return ranges
+
+
+def apply_params(base_yaml: str, ranges: list[ParamRange], combo: tuple) -> str:
+    data = deepcopy(yaml.safe_load(base_yaml))
+    for r, val in zip(ranges, combo):
+        target = data
+        for key in r.path[:-1]:
+            target = target[key]
+        target[r.path[-1]] = val
+    return yaml.dump(data, default_flow_style=False, sort_keys=False)

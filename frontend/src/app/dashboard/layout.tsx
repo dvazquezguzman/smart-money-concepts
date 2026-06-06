@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/live-trading", label: "Live Trading" },
   { href: "/dashboard/config", label: "Config" },
   { href: "/dashboard/history", label: "History" },
+  { href: "/dashboard/optimize", label: "Optimize" },
 ];
 
 export default function DashboardLayout({

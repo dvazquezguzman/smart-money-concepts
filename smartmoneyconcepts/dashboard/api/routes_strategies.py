@@ -9,7 +9,8 @@ from ..db.base import BaseStrategyRepository, BaseTradeRepository
 from ..engine.indicators import IndicatorService
 from ..main import state
 from ..strategy.backtest import Backtester
-from ..strategy.models import BacktestResult, Strategy
+from ..strategy.models import BacktestResult, OptimizerResult, Strategy
+from ..strategy.optimizer import StrategyOptimizer
 from ..strategy.parser import parse_strategy, serialize_strategy
 
 logger = logging.getLogger(__name__)
@@ -154,6 +155,30 @@ def run_backtest(body: dict) -> BacktestResult:
     backtester = Backtester(state.candle_repo, indicator_service)
     result = backtester.run(strategy, start, end, initial_capital)
     return result
+
+
+@router.post("/optimize")
+def run_optimization(body: dict) -> OptimizerResult:
+    yaml_def = body.get("definition", "").strip()
+    start_str = body.get("start", "")
+    end_str = body.get("end", "")
+    initial_capital = body.get("initial_capital", 10000.0)
+    max_combos = body.get("max_combos", 500)
+
+    if not yaml_def:
+        raise HTTPException(status_code=400, detail="definition is required")
+    if not start_str or not end_str:
+        raise HTTPException(status_code=400, detail="start and end are required")
+
+    try:
+        start = datetime.fromisoformat(start_str)
+        end = datetime.fromisoformat(end_str)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date: {e}")
+
+    indicator_service = IndicatorService(state.candle_repo)
+    optimizer = StrategyOptimizer(state.candle_repo, indicator_service)
+    return optimizer.optimize(yaml_def, start, end, initial_capital, max_combos)
 
 
 @router.get("/backtest/history/{strategy_id}")

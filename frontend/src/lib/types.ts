@@ -114,6 +114,32 @@ export interface SwingPoint {
   type: "high" | "low";
 }
 
+export interface ComboResult {
+  params: Record<string, unknown>;
+  total_trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  total_pnl: number;
+  profit_factor: number;
+  max_drawdown: number;
+  sharpe: number;
+  avg_win: number;
+  avg_loss: number;
+  largest_win: number;
+  largest_loss: number;
+  avg_bars_held: number;
+}
+
+export interface OptimizerResult {
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  total_combos: number;
+  combos_run: number;
+  results: ComboResult[];
+}
+
 export type Timeframe = "1m" | "5m" | "15m" | "1H" | "4H";
 
 export const TIMEFRAMES: Timeframe[] = ["1m", "5m", "15m", "1H", "4H"];

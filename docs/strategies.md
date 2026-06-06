@@ -128,6 +128,38 @@ risk:
   max_positions: 1
 ```
 
+## Parameter Optimization (Grid Search)
+
+The `POST /api/strategies/optimize` endpoint accepts YAML with range syntax in place of any scalar parameter. The optimizer generates all combinations (cartesian product) and returns sorted results.
+
+### Range Syntax
+
+| Format | Example | Produces |
+|--------|---------|----------|
+| List | `lookback: [5, 10, 15]` | `5, 10, 15` |
+| Dict range | `value: {min: 1.5, max: 3.0, step: 0.5}` | `1.5, 2.0, 2.5, 3.0` |
+
+### Example
+
+```yaml
+name: Optimized Strategy
+timeframe: 5m
+symbol: BTC/USDT
+entry_conditions:
+  - type: fvg_mitigation
+    direction: bullish
+    lookback: [5, 10, 15]              # 3 values
+exit_conditions:
+  - type: target
+    value: {min: 1.5, max: 3.0, step: 0.5}  # 4 values
+  - type: stop_loss
+    value: [1.0, 2.0]                  # 2 values
+risk:
+  position_size_pct: {min: 0.5, max: 2.0, step: 0.5}  # 4 values
+```
+
+Total combinations: `3 x 4 x 2 x 4 = 96`. If the total exceeds `max_combos` (default 500), log-spaced sampling is used automatically. Results are returned sorted by Sharpe ratio (descending) in the frontend, with all metrics available for sorting.
+
 ## Templates
 
 Pre-built templates are available from the dashboard Strategies page and the API at `/api/strategies/templates/`. Included templates:
